@@ -106,3 +106,4 @@ CourseID,CourseCode,LecturerID,LevelText,LevelGroupID,Department,Semester
 111,MEE504,6,500,15,Mechanical Engineering,Second
 112,MEE508,8,500,15,Mechanical Engineering,Second
 113,CYB419,29,400,16,Cyber Security,First
+114,CYB201,32,200,14,Cyber Security,First

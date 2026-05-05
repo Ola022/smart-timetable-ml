@@ -20,6 +20,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Hide Streamlit header and navbar
+hide_streamlit_style = """
+    <style>
+    /* Hide main header */
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Hide sidebar navigation elements */
+    .css-1lcbmhc {display: none;}
+    .css-1q8dd3 {display: none;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # Custom CSS
 st.markdown("""
 <style>
@@ -49,7 +63,7 @@ st.markdown("""
 
 # Initialize session state
 if 'page' not in st.session_state:
-    st.session_state.page = 'Generate Timetable'
+    st.session_state.page = 'Overview'
 if 'timetable_result' not in st.session_state:
     st.session_state.timetable_result = None
 if 'evaluation' not in st.session_state:
@@ -65,8 +79,8 @@ st.sidebar.header("📅 SMART Scheduler")
 # Navigation
 page = st.sidebar.radio(
     "Navigate to:",
-    options=["Generate Timetable", "View Timetable", "Manage Data", "View Data"],
-    index=["Generate Timetable", "View Timetable", "Manage Data", "View Data"].index(st.session_state.page)
+    options=["Overview", "View Timetable", "Manage Data", "View Data"],
+    index=["Overview", "View Timetable", "Manage Data", "View Data"].index(st.session_state.page)
 )
 st.session_state.page = page
 
@@ -105,9 +119,16 @@ if page in ["Generate Timetable", "View Timetable"]:
         threshold = st.sidebar.slider("ML Threshold", min_value=0.5, max_value=0.95, value=0.75, step=0.05)
 
 # Main content area
-if page == "Generate Timetable":
+if page == "Overview":
     st.markdown('<div class="main-header">📅 SMART Timetable Scheduler</div>', unsafe_allow_html=True)
     st.markdown("---")
+    
+    # Owner info
+    st.info("""
+    **Name:** Bawa Yusuf  
+    **Matric Number:** 20101  
+    **Version:** v1.0 | ML-Guided Intelligent Scheduling
+    """)
     
     col1, col2 = st.columns([2, 1])
     
@@ -342,63 +363,7 @@ elif page == "View Timetable":
                 st.bar_chart(day_df.set_index('Day'))
         
         st.markdown("---")
-        
-        # Download buttons
-        st.subheader("Download Results")
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            csv = result.timetable.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Timetable CSV",
-                data=csv,
-                file_name=f"timetable_{model_name.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
-        
-        with col2:
-            view_df = scheduler.format_timetable_view(result.timetable)
-            view_csv = view_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Readable CSV",
-                data=view_csv,
-                file_name=f"timetable_readable_{model_name.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
-        
-        with col3:
-            html_content = f"""
-            <html>
-            <head>
-                <title>Timetable - {model_name}</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; margin: 20px; }}
-                    table {{ border-collapse: collapse; width: 100%; }}
-                    th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-                    th {{ background-color: #4CAF50; color: white; }}
-                    tr:nth-child(even) {{ background-color: #f2f2f2; }}
-                </style>
-            </head>
-            <body>
-                <h1>Timetable - {model_name}</h1>
-                <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-                <p>Total Courses: {evaluation['total_courses']}</p>
-                <p>Scheduled: {evaluation['scheduled_courses']}</p>
-                <p>Coverage: {evaluation['coverage']:.1%}</p>
-                <h2>Timetable</h2>
-                {view_df.to_html(index=False)}
-            </body>
-            </html>
-            """
-            st.download_button(
-                label="📥 Download HTML Report",
-                data=html_content,
-                file_name=f"timetable_{model_name.lower()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
-                mime="text/html"
-            )
-        
-        st.markdown("---")
-        
+               
         
 elif page == "Manage Data":
     st.markdown('<div class="main-header">➕ Manage Data</div>', unsafe_allow_html=True)
@@ -418,7 +383,8 @@ elif page == "Manage Data":
             col1, col2 = st.columns(2)
             with col1:
                 course_code = st.text_input("Course Code (e.g., CSC101):", key="course_code")
-                level = st.text_input("Level (e.g., 100):", key="level")
+                level = st.selectbox("Level:", options=['100', '200', '300', '400', '500', '600', '700', '800', '900'], 
+                                       index=0, key="course_level")
                 semester = st.selectbox("Semester", ["First", "Second"], key="course_semester")
             with col2:
                 lecturer_name = st.selectbox("Lecturer", list(lecturer_dict.keys()), key="course_lecturer")
@@ -528,7 +494,159 @@ elif page == "View Data":
             df = df[df.apply(lambda row: any(str(search_term).lower() in str(val).lower() for val in row), axis=1)]
         
         st.subheader(f"Courses ({len(df)} entries)")
-        st.dataframe(df, use_container_width=True)
+        
+        # Row selection
+        event = st.dataframe(df, use_container_width=True, height=400, on_select="rerun", key="courses_df")
+        selected_rows = event.selection.rows
+        
+        # Action buttons
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📝 Edit Selected", key="edit_course"):
+                if selected_rows:
+                    # Clear any existing edit state first
+                    st.session_state.edit_mode = True
+                    st.session_state.edit_data_type = 'courses'
+                    st.session_state.edit_row_index = selected_rows[0]
+                    st.session_state.edit_data = df.iloc[selected_rows[0]].to_dict()
+                    st.rerun()
+                else:
+                    st.info("Select a row to edit")
+        
+        with col2:
+            if st.button("🗑️ Delete Selected", key="delete_course"):
+                if selected_rows:
+                    st.session_state.delete_mode = True
+                    st.session_state.delete_data_type = 'courses'
+                    st.session_state.delete_rows = selected_rows
+                    st.session_state.delete_data = df.iloc[selected_rows]
+                    st.rerun()
+                else:
+                    st.info("Select a row to delete")
+        
+        # Edit mode
+        if st.session_state.get('edit_mode', False) and st.session_state.get('edit_data_type') == 'courses':
+            st.subheader("Edit Course")
+            edit_data = st.session_state.edit_data
+            
+            # Load lecturers for dropdown (outside form)
+            lecturers_df = pd.read_csv('data_files/lecturers.csv')
+            lecturer_options = lecturers_df[['LecturerID', 'LecturerName']].values.tolist()
+            lecturer_dict = {f"{row[1]} (ID: {row[0]})": row[0] for row in lecturer_options}
+            
+            # Check if LecturerID exists in edit_data
+            if 'LecturerID' in edit_data:
+                current_lecturer = f"{edit_data['LecturerName']} (ID: {edit_data['LecturerID']})"
+            else:
+                # Fallback: find LecturerID from LecturerName
+                matching_lecturer = lecturers_df[lecturers_df['LecturerName'] == edit_data['LecturerName']]
+                if not matching_lecturer.empty:
+                    lecturer_id = matching_lecturer.iloc[0]['LecturerID']
+                    current_lecturer = f"{edit_data['LecturerName']} (ID: {lecturer_id})"
+                else:
+                    current_lecturer = list(lecturer_dict.keys())[0]  # Default to first lecturer
+            
+            with st.form("edit_course_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    course_code = st.text_input("Course Code:", value=edit_data['CourseCode'], key="edit_course_code")
+                    # Level dropdown with validation
+                    level_options = ['100', '200', '300', '400', '500', '600', '700', '800', '900']
+                    current_level = str(edit_data['LevelText']) if isinstance(edit_data['LevelText'], (int, float)) else edit_data['LevelText']
+                    level = st.selectbox("Level:", options=level_options, 
+                                       index=level_options.index(current_level) if current_level in level_options else 0,
+                                       key="edit_level")
+                    semester = st.selectbox("Semester", ["First", "Second"], 
+                                           index=0 if edit_data['Semester'] == 'First' else 1, 
+                                           key="edit_semester")
+                with col2:
+                    lecturer_name = st.selectbox("Lecturer", list(lecturer_dict.keys()), 
+                                                index=list(lecturer_dict.keys()).index(current_lecturer) if current_lecturer in lecturer_dict else 0,
+                                                key="edit_lecturer")
+                    department = st.text_input("Department:", value=edit_data['Department'], key="edit_department")
+                
+                col_save, col_cancel = st.columns(2)
+                with col_save:
+                    submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                with col_cancel:
+                    cancelled = st.form_submit_button("❌ Cancel")
+                
+                if submitted:
+                    # Update course
+                    courses_df = pd.read_csv('data_files/courses.csv')
+                    course_id = edit_data['CourseID']
+                    lecturer_id = lecturer_dict[lecturer_name]
+                    
+                    # Auto-generate LevelGroupID from level
+                    level_group_map = {
+                        '100': 13, '200': 14, '300': 15, '400': 16, '500': 17
+                    }
+                    level_group = level_group_map.get(level, 13)
+                    
+                    # Convert level to proper type and ensure LevelText matches original dtype
+                    try:
+                        level_value = int(level)
+                        # Check original dtype of LevelText column
+                        original_dtype = courses_df['LevelText'].dtype
+                        if pd.api.types.is_integer_dtype(original_dtype):
+                            level_text = level_value  # Keep as integer
+                        else:
+                            level_text = str(level_value)  # Convert to string
+                    except ValueError:
+                        level_text = level  # Keep original string if not convertible
+                    
+                    # Update row with proper types
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'CourseCode'] = course_code
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'LecturerID'] = lecturer_id
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'LevelText'] = level_text
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'LevelGroupID'] = level_group
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'Department'] = department
+                    courses_df.loc[courses_df['CourseID'] == course_id, 'Semester'] = semester
+                    
+                    courses_df.to_csv('data_files/courses.csv', index=False)
+                    st.success("✅ Course updated successfully!")
+                    st.session_state.edit_mode = False
+                    st.rerun()
+                
+                if cancelled:
+                    st.session_state.edit_mode = False
+                    st.rerun()
+        
+        # Delete confirmation
+        if st.session_state.get('delete_mode', False) and st.session_state.get('delete_data_type') == 'courses':
+            delete_data = st.session_state.delete_data
+            st.warning(f"⚠️ Are you sure you want to delete {len(delete_data)} course(s)?")
+            
+            # Show courses to be deleted
+            st.dataframe(delete_data[['CourseCode', 'LecturerName', 'Department', 'Semester']], 
+                        use_container_width=True, height=200)
+            
+            col_confirm, col_cancel = st.columns(2)
+            with col_confirm:
+                if st.button("✅ Yes, Delete", key="confirm_delete_course", type="primary"):
+                    # Perform deletion
+                    courses_df = pd.read_csv('data_files/courses.csv')
+                    course_ids_to_delete = delete_data['CourseID'].tolist()
+                    courses_df = courses_df[~courses_df['CourseID'].isin(course_ids_to_delete)]
+                    courses_df.to_csv('data_files/courses.csv', index=False)
+                    st.success(f"✅ Deleted {len(delete_data)} course(s)")
+                    st.session_state.delete_mode = False
+                    st.rerun()
+            with col_cancel:
+                if st.button("❌ Cancel", key="cancel_delete_course"):
+                    st.session_state.delete_mode = False
+                    st.rerun()
+        
+        with col3:
+            if st.button("📥 Download CSV", key="download_courses"):
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download Courses",
+                    data=csv,
+                    file_name=f"courses_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
     
     elif data_type == "Lecturers":
         df = pd.read_csv('data_files/lecturers.csv')
@@ -538,7 +656,112 @@ elif page == "View Data":
             df = df[df.apply(lambda row: any(str(search_term).lower() in str(val).lower() for val in row), axis=1)]
         
         st.subheader(f"Lecturers ({len(df)} entries)")
-        st.dataframe(df, use_container_width=True)
+        
+        # Row selection
+        event = st.dataframe(df, use_container_width=True, height=400, on_select="rerun", key="lecturers_df")
+        selected_rows = event.selection.rows
+        
+        # Action buttons
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📝 Edit Selected", key="edit_lecturer"):
+                if selected_rows:
+                    st.session_state.edit_mode = True
+                    st.session_state.edit_data_type = 'lecturers'
+                    st.session_state.edit_row_index = selected_rows[0]
+                    st.session_state.edit_data = df.iloc[selected_rows[0]].to_dict()
+                    st.rerun()
+                else:
+                    st.info("Select a row to edit")
+        
+        with col2:
+            if st.button("🗑️ Delete Selected", key="delete_lecturer"):
+                if selected_rows:
+                    st.session_state.delete_mode = True
+                    st.session_state.delete_data_type = 'lecturers'
+                    st.session_state.delete_rows = selected_rows
+                    st.session_state.delete_data = df.iloc[selected_rows]
+                    st.rerun()
+                else:
+                    st.info("Select a row to delete")
+        
+        # Edit mode
+        if st.session_state.get('edit_mode', False) and st.session_state.get('edit_data_type') == 'lecturers':
+            st.subheader("Edit Lecturer")
+            edit_data = st.session_state.edit_data
+            
+            with st.form("edit_lecturer_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    name = st.text_input("Lecturer Name:", value=edit_data['LecturerName'], key="edit_lecturer_name")
+                    rank = st.selectbox("Rank", ["Professor", "Associate Professor", "Senior Lecturer", "Lecturer"], 
+                                       index=0 if edit_data['Rank'] == 'Professor' else 
+                                             1 if edit_data['Rank'] == 'Associate Professor' else
+                                             2 if edit_data['Rank'] == 'Senior Lecturer' else 3,
+                                       key="edit_rank")
+                with col2:
+                    department = st.text_input("Department:", value=edit_data['Department'], key="edit_lecturer_department")
+                
+                col_save, col_cancel = st.columns(2)
+                with col_save:
+                    submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                with col_cancel:
+                    cancelled = st.form_submit_button("❌ Cancel")
+                
+                if submitted:
+                    # Update lecturer
+                    lecturers_df = pd.read_csv('data_files/lecturers.csv')
+                    lecturer_id = edit_data['LecturerID']
+                    
+                    # Update row
+                    lecturers_df.loc[lecturers_df['LecturerID'] == lecturer_id, 'LecturerName'] = name
+                    lecturers_df.loc[lecturers_df['LecturerID'] == lecturer_id, 'Rank'] = rank
+                    lecturers_df.loc[lecturers_df['LecturerID'] == lecturer_id, 'Department'] = department
+                    
+                    lecturers_df.to_csv('data_files/lecturers.csv', index=False)
+                    st.success("✅ Lecturer updated successfully!")
+                    st.session_state.edit_mode = False
+                    st.rerun()
+                
+                if cancelled:
+                    st.session_state.edit_mode = False
+                    st.rerun()
+        
+        # Delete confirmation
+        if st.session_state.get('delete_mode', False) and st.session_state.get('delete_data_type') == 'lecturers':
+            delete_data = st.session_state.delete_data
+            st.warning(f"⚠️ Are you sure you want to delete {len(delete_data)} lecturer(s)?")
+            
+            # Show lecturers to be deleted
+            st.dataframe(delete_data[['LecturerName', 'Rank', 'Department']], 
+                        use_container_width=True, height=200)
+            
+            col_confirm, col_cancel = st.columns(2)
+            with col_confirm:
+                if st.button("✅ Yes, Delete", key="confirm_delete_lecturer", type="primary"):
+                    # Perform deletion
+                    lecturers_df = pd.read_csv('data_files/lecturers.csv')
+                    lecturer_ids_to_delete = delete_data['LecturerID'].tolist()
+                    lecturers_df = lecturers_df[~lecturers_df['LecturerID'].isin(lecturer_ids_to_delete)]
+                    lecturers_df.to_csv('data_files/lecturers.csv', index=False)
+                    st.success(f"✅ Deleted {len(delete_data)} lecturer(s)")
+                    st.session_state.delete_mode = False
+                    st.rerun()
+            with col_cancel:
+                if st.button("❌ Cancel", key="cancel_delete_lecturer"):
+                    st.session_state.delete_mode = False
+                    st.rerun()
+        
+        with col3:
+            if st.button("📥 Download CSV", key="download_lecturers"):
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download Lecturers",
+                    data=csv,
+                    file_name=f"lecturers_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
     
     elif data_type == "Venues":
         df = pd.read_csv('data_files/venues.csv')
@@ -548,7 +771,113 @@ elif page == "View Data":
             df = df[df.apply(lambda row: any(str(search_term).lower() in str(val).lower() for val in row), axis=1)]
         
         st.subheader(f"Venues ({len(df)} entries)")
-        st.dataframe(df, use_container_width=True)
+        
+        # Row selection
+        event = st.dataframe(df, use_container_width=True, height=400, on_select="rerun", key="venues_df")
+        selected_rows = event.selection.rows
+        
+        # Action buttons
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📝 Edit Selected", key="edit_venue"):
+                if selected_rows:
+                    st.session_state.edit_mode = True
+                    st.session_state.edit_data_type = 'venues'
+                    st.session_state.edit_row_index = selected_rows[0]
+                    st.session_state.edit_data = df.iloc[selected_rows[0]].to_dict()
+                    st.rerun()
+                else:
+                    st.info("Select a row to edit")
+        
+        with col2:
+            if st.button("🗑️ Delete Selected", key="delete_venue"):
+                if selected_rows:
+                    st.session_state.delete_mode = True
+                    st.session_state.delete_data_type = 'venues'
+                    st.session_state.delete_rows = selected_rows
+                    st.session_state.delete_data = df.iloc[selected_rows]
+                    st.rerun()
+                else:
+                    st.info("Select a row to delete")
+        
+        # Edit mode
+        if st.session_state.get('edit_mode', False) and st.session_state.get('edit_data_type') == 'venues':
+            st.subheader("Edit Venue")
+            edit_data = st.session_state.edit_data
+            
+            with st.form("edit_venue_form"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    name = st.text_input("Venue Name:", value=edit_data['VenueName'], key="edit_venue_name")
+                    capacity = st.number_input("Capacity:", min_value=1, value=int(edit_data['Capacity']), key="edit_venue_capacity")
+                with col2:
+                    building = st.text_input("Building:", value=str(edit_data.get('Building', '')), key="edit_venue_building")
+                    room_type = st.selectbox("Room Type", ["Lecture Hall", "Lab", "Seminar Room"], 
+                                           index=0 if edit_data['RoomType'] == 'Lecture Hall' else 
+                                                 1 if edit_data['RoomType'] == 'Lab' else 2,
+                                           key="edit_venue_type")
+                
+                col_save, col_cancel = st.columns(2)
+                with col_save:
+                    submitted = st.form_submit_button("💾 Save Changes", type="primary")
+                with col_cancel:
+                    cancelled = st.form_submit_button("❌ Cancel")
+                
+                if submitted:
+                    # Update venue
+                    venues_df = pd.read_csv('data_files/venues.csv')
+                    venue_id = edit_data['VenueID']
+                    
+                    # Update row
+                    venues_df.loc[venues_df['VenueID'] == venue_id, 'VenueName'] = name
+                    venues_df.loc[venues_df['VenueID'] == venue_id, 'Capacity'] = capacity
+                    venues_df.loc[venues_df['VenueID'] == venue_id, 'Building'] = building
+                    venues_df.loc[venues_df['VenueID'] == venue_id, 'RoomType'] = room_type
+                    
+                    venues_df.to_csv('data_files/venues.csv', index=False)
+                    st.success("✅ Venue updated successfully!")
+                    st.session_state.edit_mode = False
+                    st.rerun()
+                
+                if cancelled:
+                    st.session_state.edit_mode = False
+                    st.rerun()
+        
+        # Delete confirmation
+        if st.session_state.get('delete_mode', False) and st.session_state.get('delete_data_type') == 'venues':
+            delete_data = st.session_state.delete_data
+            st.warning(f"⚠️ Are you sure you want to delete {len(delete_data)} venue(s)?")
+            
+            # Show venues to be deleted
+            st.dataframe(delete_data[['VenueName', 'Capacity', 'Building', 'RoomType']], 
+                        use_container_width=True, height=200)
+            
+            col_confirm, col_cancel = st.columns(2)
+            with col_confirm:
+                if st.button("✅ Yes, Delete", key="confirm_delete_venue", type="primary"):
+                    # Perform deletion
+                    venues_df = pd.read_csv('data_files/venues.csv')
+                    venue_ids_to_delete = delete_data['VenueID'].tolist()
+                    venues_df = venues_df[~venues_df['VenueID'].isin(venue_ids_to_delete)]
+                    venues_df.to_csv('data_files/venues.csv', index=False)
+                    st.success(f"✅ Deleted {len(delete_data)} venue(s)")
+                    st.session_state.delete_mode = False
+                    st.rerun()
+            with col_cancel:
+                if st.button("❌ Cancel", key="cancel_delete_venue"):
+                    st.session_state.delete_mode = False
+                    st.rerun()
+        
+        with col3:
+            if st.button("📥 Download CSV", key="download_venues"):
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download Venues",
+                    data=csv,
+                    file_name=f"venues_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
     
     elif data_type == "Time Slots":
         df = pd.read_csv('data_files/timeslots.csv')
@@ -557,8 +886,41 @@ elif page == "View Data":
         if search_term:
             df = df[df.apply(lambda row: any(str(search_term).lower() in str(val).lower() for val in row), axis=1)]
         
+        # Add action column
+        df['Action'] = '🕐 Manage'
+        
         st.subheader(f"Time Slots ({len(df)} entries)")
-        st.dataframe(df, use_container_width=True)
+        
+        # Row selection
+        event = st.dataframe(df, use_container_width=True, height=400, on_select="rerun", key="timeslots_df")
+        selected_rows = event.selection.rows
+        
+        # Action buttons
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("📝 Edit Selected", key="edit_slots"):
+                if selected_rows:
+                    st.info(f"Selected {len(selected_rows)} row(s) to edit")
+                else:
+                    st.info("Select a row to edit")
+        
+        with col2:
+            if st.button("🗑️ Delete Selected", key="delete_slots"):
+                if selected_rows:
+                    st.info(f"Selected {len(selected_rows)} row(s) to delete")
+                else:
+                    st.info("Select a row to delete")
+        
+        with col3:
+            if st.button("📥 Download CSV", key="download_slots"):
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download Time Slots",
+                    data=csv,
+                    file_name=f"timeslots_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
 
 # Footer
 st.markdown("---")
