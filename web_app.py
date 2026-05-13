@@ -125,8 +125,8 @@ if page == "Overview":
     
     # Owner info
     st.info("""
-    **Name:** Bawa Yusuf  
-    **Matric Number:** 20101  
+    **Name:** Bawa Yusuff Ayodele
+    **Matric Number:** 200211
     **Version:** v1.0 | ML-Guided Intelligent Scheduling
     """)
     
