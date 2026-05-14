@@ -4,6 +4,7 @@ from datetime import datetime
 import sys
 import os
 import io
+import html
 
 # Add core directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
@@ -11,6 +12,45 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
 from smart_timetable_scheduler import TimetableScheduler
 from ml_timetable_predictor import TimetableMLPredictor
 from run_scheduler import run_scheduler, display_results, save_results
+
+
+def dataframe_to_excel_xml(df):
+    """Create an Excel-compatible XML workbook with wrapped multiline cells."""
+    lines = [
+        '<?xml version="1.0"?>',
+        '<?mso-application progid="Excel.Sheet"?>',
+        '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"',
+        ' xmlns:o="urn:schemas-microsoft-com:office:office"',
+        ' xmlns:x="urn:schemas-microsoft-com:office:excel"',
+        ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+        '<Styles>',
+        '<Style ss:ID="wrap"><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>',
+        '<Style ss:ID="header"><Font ss:Bold="1"/><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>',
+        '</Styles>',
+        '<Worksheet ss:Name="Timetable">',
+        '<Table>'
+    ]
+
+    lines.append('<Row>')
+    for column in df.columns:
+        value = html.escape(str(column), quote=True)
+        lines.append(f'<Cell ss:StyleID="header"><Data ss:Type="String">{value}</Data></Cell>')
+    lines.append('</Row>')
+
+    for _, row in df.iterrows():
+        lines.append('<Row>')
+        for value in row:
+            cell_value = '' if pd.isna(value) else html.escape(str(value), quote=True).replace('\n', '&#10;')
+            lines.append(f'<Cell ss:StyleID="wrap"><Data ss:Type="String">{cell_value}</Data></Cell>')
+        lines.append('</Row>')
+
+    lines.extend([
+        '</Table>',
+        '</Worksheet>',
+        '</Workbook>'
+    ])
+    return '\n'.join(lines).encode('utf-8')
+
 
 # Page configuration
 st.set_page_config(
@@ -305,17 +345,65 @@ elif page == "View Timetable":
             
             st.markdown("---")
             
-            # Display filtered results
-            st.subheader(f"Timetable ({len(filtered_df)} entries)")
-            st.dataframe(filtered_df, use_container_width=True, height=500)
+            # Create a pivot table from the filtered timetable view
+            if len(filtered_df) > 0:
+                filtered_df = filtered_df.copy()
+                
+                # Add venue info directly into the displayed course value
+                filtered_df['CourseWithVenue'] = (
+                    filtered_df['CourseCode'] + ' - ' + filtered_df['VenueName']
+                )
+                
+                def time_range_sort_key(time_range):
+                    start_time = str(time_range).split('-')[0].strip()
+                    try:
+                        return datetime.strptime(start_time, '%H:%M').time()
+                    except ValueError:
+                        return datetime.max.time()
+                
+                def join_lines(values):
+                    values = [str(v) for v in values if pd.notna(v) and str(v).strip()]
+                    return '\n'.join(values)
+                
+                timetable_pivot = filtered_df.pivot_table(
+                    index='Day',
+                    columns='TimeRange',
+                    values='CourseWithVenue',
+                    aggfunc=join_lines,
+                    sort=False
+                )
+                
+                # Keep a consistent day order
+                day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+                timetable_pivot = timetable_pivot.reindex(day_order).fillna('')
+                sorted_time_ranges = sorted(timetable_pivot.columns, key=time_range_sort_key)
+                timetable_pivot = timetable_pivot.reindex(columns=sorted_time_ranges)
+                
+                st.subheader(f"Timetable Pivot ({len(filtered_df)} entries)")
+                
+                # Convert to HTML with proper line break rendering
+                display_pivot = timetable_pivot.copy()
+                for column in display_pivot.columns:
+                    display_pivot[column] = display_pivot[column].map(
+                        lambda value: html.escape(str(value)).replace('\n', '<br>') if str(value).strip() else ''
+                    )
+                html_table = display_pivot.to_html(escape=False)
+                st.markdown(html_table, unsafe_allow_html=True)
+                
+                download_data = dataframe_to_excel_xml(timetable_pivot.reset_index())
+                download_file_name = f"timetable_pivot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xls"
+                download_mime = "application/vnd.ms-excel"
+            else:
+                st.warning("No timetable entries match the selected filters.")
+                download_data = filtered_df.to_csv(index=False)
+                download_file_name = f"timetable_pivot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                download_mime = "text/csv"
             
-            # Download filtered
-            csv = filtered_df.to_csv(index=False)
             st.download_button(
-                label="📥 Download Filtered View",
-                data=csv,
-                file_name=f"timetable_filtered_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
+                label="📥 Download Pivot View",
+                data=download_data,
+                file_name=download_file_name,
+                mime=download_mime
             )
         
         with tab2:
@@ -929,4 +1017,3 @@ st.markdown("""
     <p>SMART Timetable Scheduler v1.0 | ML-Guided Intelligent Scheduling</p>
 </div>
 """, unsafe_allow_html=True)
-
