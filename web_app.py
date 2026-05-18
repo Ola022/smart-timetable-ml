@@ -250,7 +250,7 @@ elif page == "View Timetable":
             st.session_state.scheduler = scheduler
             st.session_state.model_name = model_name
             
-            status_placeholder.success("✅ Timetable generated successfully!")
+            status_placeholder.success(" Timetable generated successfully!")
             
         except Exception as e:
             status_placeholder.error(f"❌ Error generating timetable: {str(e)}")
@@ -285,12 +285,12 @@ elif page == "View Timetable":
         
         # Unscheduled courses warning
         if result.unscheduled_courses:
-            st.warning(f"⚠️ {len(result.unscheduled_courses)} courses could not be scheduled")
+            st.warning(f" {len(result.unscheduled_courses)} courses could not be scheduled")
             with st.expander("View unscheduled courses"):
                 for failure in result.unscheduled_courses:
                     st.write(f"- {failure.course_code}: {failure.reason}")
         else:
-            st.success("✅ All courses scheduled successfully!")
+            st.success("All courses scheduled successfully!")
         
         st.markdown("---")
         
