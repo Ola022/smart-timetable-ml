@@ -33,9 +33,11 @@ app.add_middleware(
 # Pydantic models
 class ScheduleRequest(BaseModel):
     """Request model for scheduling"""
-    model_name: str = "RandomForest"  # RandomForest, GradientBoosting, or None (basic)
+    model_name: str = "RandomForest"  # RandomForest, GradientBoosting, LogisticRegression, or Basic
     max_attempts: int = 5
     use_ml: bool = True
+    use_fallback: bool = True
+    threshold: float = 0.75
 
 
 class ModelInfo(BaseModel):
@@ -157,32 +159,47 @@ async def schedule_timetable(request: ScheduleRequest):
     start_time = datetime.now()
     
     try:
+        logger.info(
+            f"Received scheduling request: model_name={request.model_name}, use_ml={request.use_ml}, "
+            f"max_attempts={request.max_attempts}, use_fallback={request.use_fallback}, threshold={request.threshold}"
+        )
+
         # Initialize scheduler
         scheduler = TimetableScheduler()
         
         # Select ML predictor if requested
         ml_predictor = None
         model_used = "Basic"
+        model_name_normalized = request.model_name.strip().lower()
         
         if request.use_ml and predictor:
-            if request.model_name == "RandomForest":
+            if "randomforest" in model_name_normalized:
                 ml_predictor = predictor
                 model_used = "RandomForest"
-            elif request.model_name == "GradientBoosting":
+            elif "gradientboosting" in model_name_normalized:
                 ml_predictor = predictor
                 model_used = "GradientBoosting"
-            elif request.model_name == "Basic":
+            elif "logistic" in model_name_normalized or "logisticregression" in model_name_normalized:
+                ml_predictor = predictor
+                model_used = "LogisticRegression"
+            elif "basic" in model_name_normalized:
                 ml_predictor = None
                 model_used = "Basic"
             else:
                 # Default to RandomForest if specified model not found
                 ml_predictor = predictor
                 model_used = "RandomForest"
+                logger.warning(f"Unknown model_name '{request.model_name}' received, defaulting to RandomForest")
         
+        logger.info(f"Selected model_used={model_used}, ml_predictor={'yes' if ml_predictor else 'no'}")
+
         # Run scheduler
         result, evaluation = scheduler.run(
             max_attempts=request.max_attempts,
-            ml_predictor=ml_predictor
+            ml_predictor=ml_predictor,
+            model_name=model_used,
+            use_fallback=request.use_fallback,
+            progress_callback=None
         )
         
         # Convert timetable to list of dicts
