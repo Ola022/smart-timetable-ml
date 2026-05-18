@@ -36,30 +36,45 @@ def run_scheduler(choice, use_fallback=True, progress_callback=None):
     ml_predictor = None
     model_name = "Basic"
     
-    if choice == 2:
-        print("Loading RandomForest model...")
+    if choice in [2, 3, 4]:
         ml_predictor = TimetableMLPredictor()
         ml_predictor.load_models()
-        model_name = "RandomForest"
-        if not ml_predictor.rf_model:
-            raise RuntimeError("RandomForest model requested but failed to load from ml-models")
-        print("✓ RandomForest model loaded successfully")
-    elif choice == 3:
-        print("Loading GradientBoosting model...")
-        ml_predictor = TimetableMLPredictor()
-        ml_predictor.load_models()
-        model_name = "GradientBoosting"
-        if not ml_predictor.gb_model:
-            raise RuntimeError("GradientBoosting model requested but failed to load from ml-models")
-        print("✓ GradientBoosting model loaded successfully")
-    elif choice == 4:
-        print("Loading LogisticRegression model...")
-        ml_predictor = TimetableMLPredictor()
-        ml_predictor.load_models()
-        model_name = "LogisticRegression"
-        if not ml_predictor.lr_model:
-            raise RuntimeError("LogisticRegression model requested but failed to load from ml-models")
-        print("✓ LogisticRegression model loaded successfully")
+
+        if choice == 2:
+            print("Loading RandomForest model...")
+            model_name = "RandomForest"
+            if not ml_predictor.rf_model:
+                print("✗ RandomForest model requested but failed to load from ml-models")
+                print("Falling back to Basic scheduler")
+                choice = 1
+                ml_predictor = None
+                model_name = "Basic"
+            else:
+                print("✓ RandomForest model loaded successfully")
+
+        elif choice == 3:
+            print("Loading GradientBoosting model...")
+            model_name = "GradientBoosting"
+            if not ml_predictor.gb_model:
+                print("✗ GradientBoosting model requested but failed to load from ml-models")
+                print("Falling back to Basic scheduler")
+                choice = 1
+                ml_predictor = None
+                model_name = "Basic"
+            else:
+                print("✓ GradientBoosting model loaded successfully")
+
+        elif choice == 4:
+            print("Loading LogisticRegression model...")
+            model_name = "LogisticRegression"
+            if not ml_predictor.lr_model:
+                print("✗ LogisticRegression model requested but failed to load from ml-models")
+                print("Falling back to Basic scheduler")
+                choice = 1
+                ml_predictor = None
+                model_name = "Basic"
+            else:
+                print("✓ LogisticRegression model loaded successfully")
     
     print(f"\nSelected scheduler choice={choice}, model_name={model_name}, use_fallback={use_fallback}")
     

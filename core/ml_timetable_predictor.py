@@ -150,6 +150,9 @@ class TimetableMLPredictor:
         else:
             logger.warning(f"Model {model_name} not available, using RandomForest")
             model = self.rf_model
+
+        if model is None:
+            raise RuntimeError(f"Requested model '{model_name}' is not loaded. Check ml-models or sklearn compatibility.")
         
         # Get predictions
         probs = model.predict_proba(X_candidates)[:, 1]
@@ -218,22 +221,37 @@ class TimetableMLPredictor:
             logger.info("Loaded RandomForest model")
         except FileNotFoundError:
             logger.warning("RandomForest model not found")
+            self.rf_model = None
+        except Exception as e:
+            logger.warning(f"Failed to load RandomForest model: {e}")
+            self.rf_model = None
         
         try:
             self.gb_model = joblib.load(f"{directory}/GradientBoosting_timetable_model.pkl")
             logger.info("Loaded GradientBoosting model")
         except FileNotFoundError:
             logger.warning("GradientBoosting model not found")
+            self.gb_model = None
+        except Exception as e:
+            logger.warning(f"Failed to load GradientBoosting model: {e}")
+            self.gb_model = None
         
         try:
             self.lr_model = joblib.load(f"{directory}/LogisticRegression_timetable_model.pkl")
             logger.info("Loaded LogisticRegression model")
         except FileNotFoundError:
             logger.warning("LogisticRegression model not found")
+            self.lr_model = None
+        except Exception as e:
+            logger.warning(f"Failed to load LogisticRegression model: {e}")
+            self.lr_model = None
         
         try:
             self.label_encoders = joblib.load(f"{directory}/label_encoders.pkl")
             logger.info("Loaded label encoders")
         except FileNotFoundError:
             logger.warning("Label encoders not found")
+            self.label_encoders = {}
+        except Exception as e:
+            logger.warning(f"Failed to load label encoders: {e}")
             self.label_encoders = {}
