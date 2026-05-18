@@ -103,7 +103,7 @@ st.markdown("""
 
 # Initialize session state
 if 'page' not in st.session_state:
-    st.session_state.page = 'Overview'
+    st.session_state.page = 'overviews'
 if 'timetable_result' not in st.session_state:
     st.session_state.timetable_result = None
 if 'evaluation' not in st.session_state:
@@ -119,8 +119,8 @@ st.sidebar.header("📅 SMART Scheduler")
 # Navigation
 page = st.sidebar.radio(
     "Navigate to:",
-    options=["Overview", "View Timetable", "Manage Data", "View Data"],
-    index=["Overview", "View Timetable", "Manage Data", "View Data"].index(st.session_state.page)
+    options=["overviews", "View Timetable", "Manage Data", "View Data"],
+    index=["overviews", "View Timetable", "Manage Data", "View Data"].index(st.session_state.page)
 )
 st.session_state.page = page
 
@@ -159,7 +159,7 @@ if page in ["Generate Timetable", "View Timetable"]:
         threshold = st.sidebar.slider("ML Threshold", min_value=0.5, max_value=0.95, value=0.75, step=0.05)
 
 # Main content area
-if page == "Overview":
+if page == "overviews":
     st.markdown('<div class="main-header">📅 SMART Timetable Scheduler</div>', unsafe_allow_html=True)
     st.markdown("---")
     
