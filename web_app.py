@@ -253,8 +253,12 @@ elif page == "View Timetable":
             status_placeholder.success(" Timetable generated successfully!")
             
         except Exception as e:
-            status_placeholder.error(f"❌ Error generating timetable: {str(e)}")
-            st.exception(e)
+            error_msg = str(e)
+            import traceback
+            detailed_error = traceback.format_exc()
+            status_placeholder.error(f"Error generating timetable: {error_msg}")
+            st.error(f"**Detailed Error Information:**\n```\n{detailed_error}\n```")
+            st.error(f"**Troubleshooting Tips:**\n- Check that all required data files exist in data_files/ folder\n- Verify courses.csv, lecturers.csv, venues.csv, and timeslots.csv have correct columns\n- Check for invalid lecturer ID references in courses\n- Ensure level values (LevelText) are 100, 200, 300, 400, or 500")
     
     # Display results if available
     if st.session_state.timetable_result is not None:
@@ -512,7 +516,7 @@ elif page == "Manage Data":
             col1, col2 = st.columns(2)
             with col1:
                 name = st.text_input("Lecturer Name:", key="lecturer_name")
-                rank = st.selectbox("Rank", ["Professor", "Associate Professor", "Senior Lecturer", "Lecturer"], key="lecturer_rank")
+                rank = st.selectbox("Rank", ["Senior", "Junior", "Mid"], key="lecturer_rank")
             with col2:
                 department = st.text_input("Department:", key="lecturer_department")
             
@@ -783,10 +787,10 @@ elif page == "View Data":
                 col1, col2 = st.columns(2)
                 with col1:
                     name = st.text_input("Lecturer Name:", value=edit_data['LecturerName'], key="edit_lecturer_name")
-                    rank = st.selectbox("Rank", ["Professor", "Associate Professor", "Senior Lecturer", "Lecturer"], 
-                                       index=0 if edit_data['Rank'] == 'Professor' else 
-                                             1 if edit_data['Rank'] == 'Associate Professor' else
-                                             2 if edit_data['Rank'] == 'Senior Lecturer' else 3,
+                    rank = st.selectbox("Rank", ["Senior", "Junior", "Mid"], 
+                                       index=0 if edit_data['Rank'] == 'Senior' else 
+                                             1 if edit_data['Rank'] == 'Junior' else
+                                             2 if edit_data['Rank'] == 'Mid' else 3,
                                        key="edit_rank")
                 with col2:
                     department = st.text_input("Department:", value=edit_data['Department'], key="edit_lecturer_department")

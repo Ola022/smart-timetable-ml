@@ -112,10 +112,22 @@ class TimetableScheduler:
         """Load all required data from CSV files"""
         logger.info("Loading data files...")
         
-        self.courses_df = pd.read_csv(f"{self.data_dir}/courses.csv")
-        self.lecturers_df = pd.read_csv(f"{self.data_dir}/lecturers.csv")
-        self.venues_df = pd.read_csv(f"{self.data_dir}/venues.csv")
-        self.slots_df = pd.read_csv(f"{self.data_dir}/timeslots.csv")
+        try:
+            self.courses_df = pd.read_csv(f"{self.data_dir}/courses.csv")
+            self.lecturers_df = pd.read_csv(f"{self.data_dir}/lecturers.csv")
+            self.venues_df = pd.read_csv(f"{self.data_dir}/venues.csv")
+            self.slots_df = pd.read_csv(f"{self.data_dir}/timeslots.csv")
+        except FileNotFoundError as e:
+            logger.error(f"Data file not found: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error reading CSV files: {e}")
+            raise
+        
+        logger.info(f"Courses columns: {list(self.courses_df.columns)}")
+        logger.info(f"Lecturers columns: {list(self.lecturers_df.columns)}")
+        logger.info(f"Venues columns: {list(self.venues_df.columns)}")
+        logger.info(f"Slots columns: {list(self.slots_df.columns)}")
         
         # Remove empty rows if any
         self.courses_df = self.courses_df.dropna(subset=['CourseID'])
@@ -123,15 +135,24 @@ class TimetableScheduler:
         self.venues_df = self.venues_df.dropna(subset=['VenueID'])
         self.slots_df = self.slots_df.dropna(subset=['SlotID'])
         
-        # Convert to appropriate types
-        self.courses_df['CourseID'] = self.courses_df['CourseID'].astype(int)
-        self.courses_df['LecturerID'] = self.courses_df['LecturerID'].astype(int)
-        self.courses_df['LevelText'] = self.courses_df['LevelText'].astype(int)
-        self.courses_df['LevelGroupID'] = self.courses_df['LevelGroupID'].astype(int)
-        self.lecturers_df['LecturerID'] = self.lecturers_df['LecturerID'].astype(int)
-        self.venues_df['VenueID'] = self.venues_df['VenueID'].astype(int)
-        self.venues_df['Capacity'] = self.venues_df['Capacity'].astype(int)
-        self.slots_df['SlotID'] = self.slots_df['SlotID'].astype(int)
+        # Convert to appropriate types with error handling
+        try:
+            self.courses_df['CourseID'] = self.courses_df['CourseID'].astype(int)
+            self.courses_df['LecturerID'] = self.courses_df['LecturerID'].astype(int)
+            # Handle LevelText - could be already numeric or text
+            if self.courses_df['LevelText'].dtype == 'object':
+                try:
+                    self.courses_df['LevelText'] = self.courses_df['LevelText'].astype(int)
+                except ValueError:
+                    logger.warning(f"LevelText contains non-numeric values: {self.courses_df['LevelText'].unique()[:10]}")
+            self.courses_df['LevelGroupID'] = self.courses_df['LevelGroupID'].astype(int)
+            self.lecturers_df['LecturerID'] = self.lecturers_df['LecturerID'].astype(int)
+            self.venues_df['VenueID'] = self.venues_df['VenueID'].astype(int)
+            self.venues_df['Capacity'] = self.venues_df['Capacity'].astype(int)
+            self.slots_df['SlotID'] = self.slots_df['SlotID'].astype(int)
+        except Exception as e:
+            logger.error(f"Error converting data types: {e}")
+            raise
         
         logger.info(f"Loaded {len(self.courses_df)} courses, {len(self.lecturers_df)} lecturers, "
                    f"{len(self.venues_df)} venues, {len(self.slots_df)} slots")
@@ -144,38 +165,53 @@ class TimetableScheduler:
         
         # Check for missing required columns
         required_course_cols = ['CourseID', 'CourseCode', 'LecturerID', 'LevelText', 'LevelGroupID', 'Department', 'Semester']
-        for col in required_course_cols:
-            if col not in self.courses_df.columns:
-                errors.append(f"Missing column in courses: {col}")
+        missing_cols = [col for col in required_course_cols if col not in self.courses_df.columns]
+        if missing_cols:
+            errors.append(f"Missing columns in courses: {missing_cols}. Available: {list(self.courses_df.columns)}")
         
         required_lecturer_cols = ['LecturerID', 'LecturerName', 'Department', 'Rank']
-        for col in required_lecturer_cols:
-            if col not in self.lecturers_df.columns:
-                errors.append(f"Missing column in lecturers: {col}")
+        missing_cols = [col for col in required_lecturer_cols if col not in self.lecturers_df.columns]
+        if missing_cols:
+            errors.append(f"Missing columns in lecturers: {missing_cols}. Available: {list(self.lecturers_df.columns)}")
         
         required_venue_cols = ['VenueID', 'VenueName', 'Capacity']
-        for col in required_venue_cols:
-            if col not in self.venues_df.columns:
-                errors.append(f"Missing column in venues: {col}")
+        missing_cols = [col for col in required_venue_cols if col not in self.venues_df.columns]
+        if missing_cols:
+            errors.append(f"Missing columns in venues: {missing_cols}. Available: {list(self.venues_df.columns)}")
         
         required_slot_cols = ['SlotID', 'Day', 'TimeRange']
-        for col in required_slot_cols:
-            if col not in self.slots_df.columns:
-                errors.append(f"Missing column in slots: {col}")
+        missing_cols = [col for col in required_slot_cols if col not in self.slots_df.columns]
+        if missing_cols:
+            errors.append(f"Missing columns in slots: {missing_cols}. Available: {list(self.slots_df.columns)}")
         
-        # Check for duplicate course IDs
-        if self.courses_df['CourseID'].duplicated().any():
-            errors.append("Duplicate CourseIDs found")
-        
-        # Check lecturer references
-        invalid_lecturers = set(self.courses_df['LecturerID']) - set(self.lecturers_df['LecturerID'])
-        if invalid_lecturers:
-            errors.append(f"Courses reference invalid lecturers: {invalid_lecturers}")
-        
-        # Check level references
-        invalid_levels = set(self.courses_df['LevelText']) - set(self.level_sizes.keys())
-        if invalid_levels:
-            errors.append(f"Invalid levels found: {invalid_levels}")
+        # Only proceed with other checks if columns exist
+        if not errors:
+            # Check for empty datasets
+            if len(self.courses_df) == 0:
+                errors.append("Courses dataset is empty")
+            if len(self.lecturers_df) == 0:
+                errors.append("Lecturers dataset is empty")
+            if len(self.venues_df) == 0:
+                errors.append("Venues dataset is empty")
+            if len(self.slots_df) == 0:
+                errors.append("Slots dataset is empty")
+            
+            # Check for duplicate course IDs
+            if self.courses_df['CourseID'].duplicated().any():
+                dup_ids = self.courses_df[self.courses_df['CourseID'].duplicated()]['CourseID'].unique()
+                errors.append(f"Duplicate CourseIDs found: {list(dup_ids)}")
+            
+            # Check lecturer references
+            invalid_lecturers = set(self.courses_df['LecturerID']) - set(self.lecturers_df['LecturerID'])
+            if invalid_lecturers:
+                logger.warning(f"Courses reference invalid lecturers: {invalid_lecturers}")
+                errors.append(f"Invalid lecturer references: {invalid_lecturers}. Valid lecturer IDs: {sorted(set(self.lecturers_df['LecturerID']))[:10]}...")
+            
+            # Check level references
+            invalid_levels = set(self.courses_df['LevelText']) - set(self.level_sizes.keys())
+            if invalid_levels:
+                logger.warning(f"Invalid levels found: {invalid_levels}. Expected levels: {list(self.level_sizes.keys())}")
+                errors.append(f"Invalid levels found: {invalid_levels}. Expected: {list(self.level_sizes.keys())}")
         
         if errors:
             for error in errors:
@@ -204,6 +240,14 @@ class TimetableScheduler:
         self.level_schedule.clear()
         self.course_slots.clear()
         self.course_session_count.clear()
+
+    def get_slot_utilization(self, semester: str) -> Dict[int, int]:
+        """Get count of how many times each slot is used"""
+        utilization = Counter()
+        for (lec_id, sem, slot_id) in self.lecturer_schedule:
+            if sem == semester:
+                utilization[slot_id] += 1
+        return dict(utilization)
 
     def get_qualified_lecturers(self, level: int) -> List[int]:
         """Get list of lecturers qualified to teach a level"""
@@ -595,6 +639,7 @@ class TimetableScheduler:
         # Generate all candidates
         candidates = []
         all_slots = self.slots_df.SlotID.tolist()
+        slot_utilization = self.get_slot_utilization(semester)  # Get current slot usage
         
         for slot_id in all_slots:
             # Check if course already has this slot
@@ -621,7 +666,8 @@ class TimetableScheduler:
                         'VenueCapacitySuitable': venue_capacity_ok,
                         'LecturerAlreadyBooked': lecturer_conflict,
                         'VenueAlreadyBooked': venue_conflict,
-                        'LevelAlreadyBooked': level_conflict
+                        'LevelAlreadyBooked': level_conflict,
+                        '_slot_usage': slot_utilization.get(slot_id, 0)  # Internal field for sorting
                     }
                     candidates.append(candidate)
         
@@ -633,9 +679,14 @@ class TimetableScheduler:
             and c['VenueCapacitySuitable'] == 1
         ]
         
+        # Sort valid candidates by slot usage (prefer less-used slots for load balancing)
+        valid_candidates.sort(key=lambda c: c['_slot_usage'])
+        
         # If ML predictor is available, use it to rank candidates
         if ml_predictor and len(valid_candidates) > 0:
             candidates_df = pd.DataFrame(valid_candidates)
+            # Remove internal field before passing to ML
+            candidates_df = candidates_df.drop(columns=['_slot_usage'])
             try:
                 ranked_df = ml_predictor.rank_candidates(candidates_df, model_name=model_name)
                 # Try candidates in ML-ranked order
@@ -649,19 +700,28 @@ class TimetableScheduler:
                 logger.warning(f"ML ranking failed: {e}, falling back to systematic search")
         
         # Fallback to systematic search without ML
-        # Strategy 1: Try candidates without level conflict first
-        for candidate in valid_candidates:
-            if candidate['LevelAlreadyBooked'] == 0:
-                return candidate
+        # Strategy 1: Try candidates without level conflict first, prioritizing less-used slots
+        non_conflict_candidates = [c for c in valid_candidates if c['LevelAlreadyBooked'] == 0]
+        non_conflict_candidates.sort(key=lambda c: c['_slot_usage'])
+        for candidate in non_conflict_candidates:
+            result_dict = candidate.copy()
+            result_dict.pop('_slot_usage', None)  # Remove internal field before returning
+            return result_dict
         
-        # Strategy 2: If no conflict-free candidates, allow level conflict
+        # Strategy 2: If no conflict-free candidates, allow level conflict but prefer less-used slots
+        valid_candidates.sort(key=lambda c: c['_slot_usage'])
         if valid_candidates:
-            return valid_candidates[0]
+            result_dict = valid_candidates[0].copy()
+            result_dict.pop('_slot_usage', None)  # Remove internal field before returning
+            return result_dict
         
         # Strategy 3: Try all candidates including those with conflicts
-        for candidate in candidates:
+        all_candidates = sorted(candidates, key=lambda c: c['_slot_usage'])
+        for candidate in all_candidates:
             if candidate['LecturerAlreadyBooked'] == 0 and candidate['VenueAlreadyBooked'] == 0:
-                return candidate
+                result_dict = candidate.copy()
+                result_dict.pop('_slot_usage', None)  # Remove internal field before returning
+                return result_dict
         
         return None
 
@@ -969,8 +1029,9 @@ class TimetableScheduler:
         
         # Load and validate data
         self.load_data()
-        if not self.validate_inputs():
-            raise ValueError("Input validation failed")
+        validation_result = self.validate_inputs()
+        if not validation_result:
+            raise ValueError("Input validation failed - Check logs for specific data issues. Common issues: Missing columns in CSV files, Invalid lecturer IDs in courses, Level values must be 100/200/300/400/500, Missing or empty data files.")
         
         if progress_callback:
             progress_callback("Building lookup dictionaries...")
