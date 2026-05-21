@@ -44,37 +44,37 @@ def run_scheduler(choice, use_fallback=True, progress_callback=None):
             print("Loading RandomForest model...")
             model_name = "RandomForest"
             if not ml_predictor.rf_model:
-                print("✗ RandomForest model requested but failed to load from ml-models")
+                print("[ERROR] RandomForest model requested but failed to load from ml-models")
                 print("Falling back to Basic scheduler")
                 choice = 1
                 ml_predictor = None
                 model_name = "Basic"
             else:
-                print("✓ RandomForest model loaded successfully")
+                print("[OK] RandomForest model loaded successfully")
 
         elif choice == 3:
             print("Loading GradientBoosting model...")
             model_name = "GradientBoosting"
             if not ml_predictor.gb_model:
-                print("✗ GradientBoosting model requested but failed to load from ml-models")
+                print("[ERROR] GradientBoosting model requested but failed to load from ml-models")
                 print("Falling back to Basic scheduler")
                 choice = 1
                 ml_predictor = None
                 model_name = "Basic"
             else:
-                print("✓ GradientBoosting model loaded successfully")
+                print("[OK] GradientBoosting model loaded successfully")
 
         elif choice == 4:
             print("Loading LogisticRegression model...")
             model_name = "LogisticRegression"
             if not ml_predictor.lr_model:
-                print("✗ LogisticRegression model requested but failed to load from ml-models")
+                print("[ERROR] LogisticRegression model requested but failed to load from ml-models")
                 print("Falling back to Basic scheduler")
                 choice = 1
                 ml_predictor = None
                 model_name = "Basic"
             else:
-                print("✓ LogisticRegression model loaded successfully")
+                print("[OK] LogisticRegression model loaded successfully")
     
     print(f"\nSelected scheduler choice={choice}, model_name={model_name}, use_fallback={use_fallback}")
     
@@ -110,7 +110,7 @@ def display_results(result, evaluation, model_name):
         for failure in result.unscheduled_courses:
             print(f"  - {failure.course_code}: {failure.reason}")
     else:
-        print("\n✓ All courses scheduled successfully!")
+        print("\n[OK] All courses scheduled successfully!")
     
     print("\n" + "=" * 60)
     print("LECTURER LOAD:")
@@ -140,19 +140,19 @@ def save_results(scheduler, result, evaluation, model_name):
     view_df = scheduler.format_timetable_view(result.timetable)
     timetable_file = f"timetable_{model_name.lower()}.csv"
     view_df.to_csv(timetable_file, index=False)
-    print(f"✓ Timetable list saved to: {timetable_file}")
+    print(f"[OK] Timetable list saved to: {timetable_file}")
     
     # Save timetable grid format (pivot table)
     grid_df = scheduler.format_timetable_grid(result.timetable)
     grid_file = f"timetable_grid_{model_name.lower()}.csv"
     grid_df.to_csv(grid_file)
-    print(f"✓ Timetable grid saved to: {grid_file}")
+    print(f"[OK] Timetable grid saved to: {grid_file}")
     
     # Save ML dataset
     ml_dataset = scheduler.generate_ml_dataset(result)
     dataset_file = f"dataset_{model_name.lower()}.csv"
     ml_dataset.to_csv(dataset_file, index=False)
-    print(f"✓ ML dataset saved to: {dataset_file}")
+    print(f"[OK] ML dataset saved to: {dataset_file}")
 
 def generate_html_report(result, evaluation, model_name, scheduler):
     """Generate an HTML report for viewing in browser"""
@@ -246,7 +246,7 @@ def generate_html_report(result, evaluation, model_name, scheduler):
         <h1>🎓 Timetable Report</h1>
         
         <div class="success">
-            <strong>✓ Generated using: {model_name}</strong>
+            <strong>[OK] Generated using: {model_name}</strong>
         </div>
         
         <div class="stats-grid">
@@ -312,13 +312,13 @@ def generate_html_report(result, evaluation, model_name, scheduler):
     html_file = f"timetable_{model_name.lower()}.html"
     with open(html_file, 'w', encoding='utf-8') as f:
         f.write(html)
-    print(f"✓ HTML report saved to: {html_file}")
+    print(f"[OK] HTML report saved to: {html_file}")
     
     # Try to open in browser
     try:
         import webbrowser
         webbrowser.open(f'file:///{html_file}')
-        print("✓ Report opened in browser")
+        print("[OK] Report opened in browser")
     except:
         print("  (Could not auto-open browser)")
 
@@ -344,7 +344,7 @@ def main():
     generate_html_report(result, evaluation, model_name, scheduler)
     
     print("\n" + "=" * 60)
-    print("✓ DONE!")
+    print("[OK] DONE!")
     print("=" * 60)
 
 if __name__ == "__main__":
