@@ -1,7 +1,7 @@
 VenueID,VenueName,Capacity,Building,Type
-1,1500 Engineering Lecture Hall,1500,,
+1,1500 Eng. Lect. Hall,1500,,
 2,750 Lecture Hall A,750,,
 3,Sifax Hall B,700,,
-4,MKO Lecture Hall Hall,900,,
-5,Highrise Comp. Eng Hall 1,300,,
+4,MKO Lecture Hall ,900,,
+5,Comp. Eng Hall 1,300,,
 6,Computer lab1,50,Computer eng Department,Lecture Hall
