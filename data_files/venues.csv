@@ -1,7 +1,4 @@
 VenueID,VenueName,Capacity,Building,Type
-1,1500 Lect. Hall,1500,,
-2,750 Lect. Hall A,750,,
-3,Sifax Hall B,700,,
-4,MKO Lect. Hall ,900,,
-5,Comp. Eng Hall,300,,
-6,Computer lab1,50,Computer eng Department,Lecture Hall
+1,Hall 1 FCI,150,,
+2,750 FET,750,,
+3,250LT  ,250,,
