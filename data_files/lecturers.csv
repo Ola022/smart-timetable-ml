@@ -1,34 +1,9 @@
 LecturerID,LecturerName,Department,Rank
-1,Dr. Adefemi,Electrical Engineering,Mid
-2,Dr. Olatunji,Electrical Engineering,Mid
-3,Prof. Adeosun,Mechanical Engineering,Senior
-4,Mrs. Jeremiah,Computer Science,Junior
-5,Prof. Ismaila,Computer Science,Senior
-6,Prof. Olabisi,Computer Science,Senior
-7,Mrs. Orukotan,Mechanical Engineering,Senior
-8,Dr. Zainab Salami,Mechanical Engineering,Senior
-9,Mrs. Orukotan,Computer Science,Mid
-10,Dr. Adeyemo,Computer Science,Senior
-11,Dr. Victor Fashola,Mechanical Engineering,Mid
-12,Dr. Uche Balogun,Mechanical Engineering,Mid
-13,Prof. Adeosun,Computer Science,Senior
-14,Prof. Adetunji,Computer Science,Senior
-15,Dr. Grace Kalu,Computer Science,Junior
-16,Dr. Patricia Mohammed,Mechanical Engineering,Mid
-17,Dr. Yemi Rufai,Mechanical Engineering,Junior
-18,Dr. Musa Akintoye,Computer Science,Mid
-19,Dr. Adebayo Thomas,Electrical Engineering,Senior
-20,Dr. James Mohammed,Computer Science,Mid
-21,Dr. Frank Babatunde,Electrical Engineering,Junior
-22,Dr. Chidi Yakubu,Electrical Engineering,Mid
-23,Dr. Uche Fashola,Mechanical Engineering,Senior
-24,Dr. Stella Okafor,Computer Science,Senior
-25,Dr. Stella Chukwu,Electrical Engineering,Junior
-26,Prof. James Mohammed,Computer Science,Senior
-27,Prof. A Frank Babatunde,Electrical Engineering,Mid
-28,Dr. Slot Yakubu,Electrical Engineering,Mid
-29,Dr. Liam  Fashola,Mechanical Engineering,Senior
-30,Dr. Delap Okafor,Computer Science,Senior
-31,Dr. Palmer Chukwu,Electrical Engineering,Junior
-32,Bawa Y.O,Computer Science,Professor
-33,Prof Lateef K.O,Computer science,Senior
+1,Mrs. Jeremiah,Computer Science,Senior
+2,Prof. Ismaila,Computer Science,Senior
+3,Prof. Olabisi,Computer Science,Senior
+4,Mrs. Orukotan,Computer Science,Senior
+5,Dr. Adeyemo,Computer Science,Senior
+6,Prof. Adeosun,Computer Science,Senior
+7,Prof. Adetunji,Computer Science,Senior
+8,Mrs. Oguniyi,Computer Science,Senior
