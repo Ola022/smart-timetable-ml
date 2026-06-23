@@ -27,7 +27,7 @@ def get_user_choice():
             return int(choice)
         print("Invalid choice. Please enter 1, 2, 3, or 4.")
 
-def run_scheduler(choice, use_fallback=True, progress_callback=None):
+def run_scheduler(choice, semester=None, use_fallback=True, progress_callback=None):
     print("\n" + "=" * 60)
     print("INITIALIZING SCHEDULER...")
     print("=" * 60)
@@ -88,7 +88,14 @@ def run_scheduler(choice, use_fallback=True, progress_callback=None):
     
     # Run scheduler
     scheduler = TimetableScheduler()
-    result, evaluation = scheduler.run(max_attempts=5, ml_predictor=ml_predictor, model_name=model_name, use_fallback=use_fallback, progress_callback=progress_callback)
+    result, evaluation = scheduler.run(
+        max_attempts=5,
+        ml_predictor=ml_predictor,
+        model_name=model_name,
+        use_fallback=use_fallback,
+        progress_callback=progress_callback,
+        semester=semester
+    )
     
     return scheduler, result, evaluation, model_name
 
