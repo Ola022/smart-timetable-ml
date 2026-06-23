@@ -249,6 +249,15 @@ class TimetableScheduler:
                 utilization[slot_id] += 1
         return dict(utilization)
 
+    def get_day_utilization(self, semester: str) -> Dict[str, int]:
+        """Get count of how many classes have been assigned per day for the semester"""
+        utilization = Counter()
+        for (lec_id, sem, slot_id) in self.lecturer_schedule:
+            if sem == semester:
+                day = self.slot_day.get(slot_id)
+                utilization[day] += 1
+        return dict(utilization)
+
     def get_qualified_lecturers(self, level: int) -> List[int]:
         """Get list of lecturers qualified to teach a level"""
         qualified = []
@@ -388,8 +397,22 @@ class TimetableScheduler:
             # Use score column based on model
             score_column = f'{model_name}_score'
             
-            # Sort by score descending and pick best
-            scored_df = scored_df.sort_values(score_column, ascending=False)
+            # Combine ML score with a day/slot usage penalty to prefer less-busy days
+            # Higher _slot_usage means busier slot/day (we penalize it)
+            if '_slot_usage' in scored_df.columns:
+                max_usage = scored_df['_slot_usage'].max()
+                if max_usage <= 0:
+                    max_usage = 1
+                # Penalty weight - higher values bias towards under-used days
+                penalty_weight = 0.5
+                scored_df['composite_score'] = (
+                    scored_df[score_column] - penalty_weight * (scored_df['_slot_usage'] / max_usage)
+                )
+                scored_df = scored_df.sort_values('composite_score', ascending=False)
+            else:
+                # Sort by ML score only
+                scored_df = scored_df.sort_values(score_column, ascending=False)
+
             best_candidate = scored_df.iloc[0]
             
             # Check hard constraints
@@ -640,6 +663,7 @@ class TimetableScheduler:
         candidates = []
         all_slots = self.slots_df.SlotID.tolist()
         slot_utilization = self.get_slot_utilization(semester)  # Get current slot usage
+        day_utilization = self.get_day_utilization(semester)    # Get current day usage
         
         for slot_id in all_slots:
             # Check if course already has this slot
@@ -653,6 +677,10 @@ class TimetableScheduler:
                     level_conflict = 1 if self.check_level_conflict(level, semester, slot_id) else 0
                     venue_capacity_ok = 1 if self.check_venue_capacity(venue_id, level) else 0
                     
+                    # incorporate day usage into a combined usage metric to prefer under-used days
+                    day_name = self.slot_day.get(slot_id)
+                    combined_usage = slot_utilization.get(slot_id, 0) + day_utilization.get(day_name, 0) * 2
+
                     candidate = {
                         'CourseID': course_id,
                         'CourseCode': course_code,
@@ -667,7 +695,7 @@ class TimetableScheduler:
                         'LecturerAlreadyBooked': lecturer_conflict,
                         'VenueAlreadyBooked': venue_conflict,
                         'LevelAlreadyBooked': level_conflict,
-                        '_slot_usage': slot_utilization.get(slot_id, 0)  # Internal field for sorting
+                        '_slot_usage': combined_usage  # Internal field for sorting (slot + day weight)
                     }
                     candidates.append(candidate)
         
@@ -1017,7 +1045,7 @@ class TimetableScheduler:
         
         return ml_df
 
-    def run(self, max_attempts: int = 5, ml_predictor=None, model_name='RandomForest', use_fallback=True, progress_callback=None) -> Tuple[ScheduleResult, Dict]:
+    def run(self, max_attempts: int = 5, ml_predictor=None, model_name='RandomForest', use_fallback=True, progress_callback=None, semester=None) -> Tuple[ScheduleResult, Dict]:
         """
         Main execution method
         Runs scheduling with ML pipeline if predictor provided, otherwise uses basic CSP
@@ -1032,6 +1060,14 @@ class TimetableScheduler:
         validation_result = self.validate_inputs()
         if not validation_result:
             raise ValueError("Input validation failed - Check logs for specific data issues. Common issues: Missing columns in CSV files, Invalid lecturer IDs in courses, Level values must be 100/200/300/400/500, Missing or empty data files.")
+        
+        if semester is not None:
+            if semester not in self.courses_df['Semester'].unique().tolist():
+                raise ValueError(f"No courses found for semester '{semester}'. Available semesters: {sorted(self.courses_df['Semester'].unique().tolist())}")
+            self.courses_df = self.courses_df[self.courses_df['Semester'] == semester].copy()
+            logger.info(f"Filtered courses for semester: {semester}, {len(self.courses_df)} courses remain")
+            if len(self.courses_df) == 0:
+                raise ValueError(f"No courses available for selected semester: {semester}")
         
         if progress_callback:
             progress_callback("Building lookup dictionaries...")
@@ -1084,6 +1120,10 @@ class TimetableScheduler:
         """
         expected_students = self.level_sizes.get(level, 100)
         
+        # compute current usage metrics to prefer under-used slots/days
+        slot_utilization = self.get_slot_utilization(semester)
+        day_utilization = self.get_day_utilization(semester)
+
         candidates = []
         
         # Get qualified lecturers for this level
@@ -1116,6 +1156,9 @@ class TimetableScheduler:
                     venue_conflict = 1 if (venue_id, semester, slot_id) in self.venue_schedule else 0
                     level_conflict = 1 if (level, semester, slot_id) in self.level_schedule else 0
                     
+                    day_name = self.slot_day.get(slot_id)
+                    combined_usage = slot_utilization.get(slot_id, 0) + day_utilization.get(day_name, 0) * 2
+
                     row = {
                         "CourseID": course_id,
                         "LecturerID": lecturer_id,
@@ -1128,7 +1171,8 @@ class TimetableScheduler:
                         "VenueCapacitySuitable": capacity_suitable,
                         "LecturerAlreadyBooked": lecturer_conflict,
                         "VenueAlreadyBooked": venue_conflict,
-                        "LevelAlreadyBooked": level_conflict
+                        "LevelAlreadyBooked": level_conflict,
+                        "_slot_usage": combined_usage
                     }
                     candidates.append(row)
         

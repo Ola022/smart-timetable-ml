@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'core'))
 
 from smart_timetable_scheduler import TimetableScheduler
 from ml_timetable_predictor import TimetableMLPredictor
-from run_scheduler import run_scheduler, display_results, save_results
+from core.run_scheduler import run_scheduler, display_results, save_results
 
 
 def dataframe_to_excel_xml(df):
@@ -98,6 +98,27 @@ st.markdown("""
         padding: 1rem;
         margin: 1rem 0;
     }
+
+    /* Print / light-mode adjustments: ensure white background and black text when printing */
+    @media print {
+        html, body, .main-header, .success-box, .info-box, .stApp, .css-1v3fvcr {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        /* Force tables and cards to white for clear printing */
+        table, th, td, .stMarkdown, .stText, .stInfo {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        /* Preserve colors when printing on browsers that support it */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        /* Avoid sticky/fixed elements interfering with print */
+        header, nav, .css-1lcbmhc, .css-1q8dd3 { display: none !important; }
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -199,6 +220,14 @@ elif page == "View Timetable":
     st.markdown('<div class="main-header">📋 View Timetable</div>', unsafe_allow_html=True)
     st.markdown("---")
     
+    # Semester selector on the main page before generation
+    selected_semester = st.selectbox(
+        "Select semester for timetable generation:",
+        options=["First", "Second"],
+        index=0,
+        key="selected_semester"
+    )
+
     # Configuration summary
     st.subheader("Configuration")
     col1, col2 = st.columns(2)
@@ -206,6 +235,7 @@ elif page == "View Timetable":
         st.info(f"""
         **Method:** {method} \t
         **Fallback:** {'Enabled' if use_fallback else 'Disabled'}        
+        **Semester:** {selected_semester}
         """)
     with col2:
         if choice in [2, 3, 4]:
@@ -239,7 +269,8 @@ elif page == "View Timetable":
             progress_callback("Initializing scheduler...")
             
             scheduler, result, evaluation, model_name = run_scheduler(
-                choice, 
+                choice,
+                semester=selected_semester,
                 use_fallback=use_fallback,
                 progress_callback=progress_callback
             )
@@ -312,12 +343,6 @@ elif page == "View Timetable":
             
             with col2:
                 view_df = scheduler.format_timetable_view(result.timetable)
-                if 'Semester' in view_df.columns:
-                    semesters = ['All'] + sorted(view_df['Semester'].unique().tolist())
-                    semester_filter = st.selectbox("Filter by Semester:", semesters)
-                else:
-                    semester_filter = 'All'
-            
             with col3:
                 if 'LecturerName' in view_df.columns:
                     lecturers = ['All'] + sorted(view_df['LecturerName'].unique().tolist())
@@ -337,9 +362,6 @@ elif page == "View Timetable":
             
             if search_term:
                 filtered_df = filtered_df[filtered_df['CourseCode'].str.contains(search_term, case=False, na=False)]
-            
-            if semester_filter != 'All':
-                filtered_df = filtered_df[filtered_df['Semester'] == semester_filter]
             
             if lecturer_filter != 'All':
                 filtered_df = filtered_df[filtered_df['LecturerName'] == lecturer_filter]
