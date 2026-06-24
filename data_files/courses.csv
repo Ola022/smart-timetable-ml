@@ -1,6 +1,6 @@
 CourseID,CourseCode,LecturerID,LevelText,LevelGroupID,Department,Semester
 1,COS101,2,100,2,Computer Science,First
-2,CSC 101,8,100,2,Computer Science,First
+2,CSC101,8,100,2,Computer Science,First
 3,LCSC102,3,100,2,Computer Science,Second
 4,LCSC104,2,100,2,Computer Science,Second
 5,CSC201,1,200,4,Computer Science,First
