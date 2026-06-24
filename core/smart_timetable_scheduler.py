@@ -86,9 +86,9 @@ class TimetableScheduler:
         
         # Configuration
         self.qualification_rules = {
-            "Junior": [100, 200],
-            "Mid": [200, 300, 400, 500],
-            "Senior": [200, 300, 400, 500]
+            "Junior": [100, 200, 300],
+            "Mid": [100, 200, 300, 400, 500],
+            "Senior": [100, 200, 300, 400, 500]
         }
         
         self.level_sizes = {
@@ -644,8 +644,15 @@ class TimetableScheduler:
         if current_sessions >= self.max_sessions_per_course:
             return None
         
-        # Get qualified lecturers
-        qualified_lecturers = self.get_qualified_lecturers(level)
+        # Use the assigned course lecturer first, then fallback to qualified lecturers
+        assigned_lecturer = self.course_lecturer.get(course_id)
+        qualified_lecturers = []
+        if assigned_lecturer is not None:
+            qualified_lecturers.append(assigned_lecturer)
+        for lid in self.get_qualified_lecturers(level):
+            if lid not in qualified_lecturers:
+                qualified_lecturers.append(lid)
+
         if not qualified_lecturers:
             logger.warning(f"No qualified lecturers for course {course_code} (level {level})")
             return None
@@ -1126,11 +1133,14 @@ class TimetableScheduler:
 
         candidates = []
         
-        # Get qualified lecturers for this level
-        qualified_lecturers = [
-            lid for lid, rank in self.lecturer_rank.items()
-            if level in self.qualification_rules.get(rank, [])
-        ]
+        # Use the assigned course lecturer first, then fallback to qualified lecturers
+        assigned_lecturer = self.course_lecturer.get(course_id)
+        qualified_lecturers = []
+        if assigned_lecturer is not None:
+            qualified_lecturers.append(assigned_lecturer)
+        for lid in self.get_qualified_lecturers(level):
+            if lid not in qualified_lecturers:
+                qualified_lecturers.append(lid)
         
         if not qualified_lecturers:
             return []
