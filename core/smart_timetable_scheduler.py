@@ -644,7 +644,7 @@ class TimetableScheduler:
         if current_sessions >= self.max_sessions_per_course:
             return None
         
-        # Use the assigned course lecturer first, then fallback to qualified lecturers
+        # Use the assigned course lecturer first, then fallback to other qualified lecturers
         assigned_lecturer = self.course_lecturer.get(course_id)
         qualified_lecturers = []
         if assigned_lecturer is not None:
@@ -652,7 +652,7 @@ class TimetableScheduler:
         for lid in self.get_qualified_lecturers(level):
             if lid not in qualified_lecturers:
                 qualified_lecturers.append(lid)
-
+        
         if not qualified_lecturers:
             logger.warning(f"No qualified lecturers for course {course_code} (level {level})")
             return None
@@ -1133,7 +1133,7 @@ class TimetableScheduler:
 
         candidates = []
         
-        # Use the assigned course lecturer first, then fallback to qualified lecturers
+        # Use the assigned course lecturer first, then fallback to other qualified lecturers
         assigned_lecturer = self.course_lecturer.get(course_id)
         qualified_lecturers = []
         if assigned_lecturer is not None:
