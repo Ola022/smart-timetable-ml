@@ -208,9 +208,9 @@ if page == "overviews":
     
     with col2:
         st.subheader("Quick Stats")
-        st.metric("Total Courses", "106")
-        st.metric("Total Lecturers", "31")
-        st.metric("Total Venues", "5")
+        st.metric("Total Courses", "48")
+        st.metric("Total Lecturers", "8")
+        st.metric("Total Venues", "3")
         st.metric("Total Slots", "30")
     
     st.markdown("---")
